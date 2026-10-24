@@ -1,0 +1,34 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;margin:0;padding:20px;background:#f3f4f6;color:#111;font-size:14px}
+h2{margin:0 0 4px}.box{background:#fff;border-radius:8px;padding:12px 14px;margin:10px 0;box-shadow:0 1px 3px #0002}
+code{display:block;font-size:20px;letter-spacing:1px;text-align:center;padding:10px;background:#eef2ff;border-radius:6px;user-select:all;margin:6px 0}
+textarea{width:100%;height:90px;box-sizing:border-box;padding:8px;border:1px solid #ccc;border-radius:6px;font:12px Consolas,monospace;resize:none}
+button{padding:9px 14px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;margin:6px 6px 0 0;font-size:14px}
+button.g{background:#6b7280}button.t{background:#15803d}
+.err{color:#b91c1c;font-weight:600}.ok{color:#15803d;font-weight:600}small{color:#555}
+</style></head><body>
+<h2>Lisans Aktivasyonu</h2><small id="prod"></small>
+<div class="box" id="why"></div>
+<div class="box"><b>1) Makine kodu</b><br><small>Lisans almak için bu kodu satıcıya gönderin. Lisans yalnızca bu bilgisayarda çalışır.</small>
+<code id="code"></code><button class="g" id="copy">Kodu kopyala</button></div>
+<div class="box"><b>2) Lisans kodu</b><br><small>Size gelen lisans kodunu yapıştırın veya dosyadan yükleyin.</small><br>
+<textarea id="txt" placeholder="LIC1...."></textarea>
+<button id="apply">Aktifleştir</button><button class="g" id="pick">Dosyadan yükle…</button><div id="msg" class="err"></div></div>
+<div class="box" id="tb" style="display:none"><button class="t" id="trial"></button></div>
+<script>
+const $=id=>document.getElementById(id);
+lic.info().then(i=>{
+  $('code').textContent=i.code;$('prod').textContent='Ürün: '+i.product;
+  const s=i.status;
+  if(s.reason){$('why').className='box err';$('why').textContent=s.reason;}
+  else if(s.mode==='trial'){$('why').textContent='Deneme sürümü: '+s.daysLeft+' gün kaldı.';}
+  else if(s.mode==='licensed'){$('why').className='box ok';$('why').textContent='Lisanslı: '+s.customer+' (bitiş '+s.expires+')';}
+  if(i.mode==='gate'&&s.mode==='trial'){$('tb').style.display='block';$('trial').textContent='Deneme sürümü ile devam et ('+s.daysLeft+' gün kaldı)';}
+});
+$('copy').onclick=()=>{lic.copy($('code').textContent);$('copy').textContent='Kopyalandı ✔';};
+$('apply').onclick=async()=>{const r=await lic.apply($('txt').value);if(r&&r.error)$('msg').textContent=r.error;};
+$('pick').onclick=async()=>{const r=await lic.pick();if(r&&r.error)$('msg').textContent=r.error;};
+$('trial').onclick=async()=>{const r=await lic.trial();if(r&&r.error)$('msg').textContent=r.error;};
+</script></body></html>
