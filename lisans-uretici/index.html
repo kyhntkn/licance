@@ -1,0 +1,58 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f3f4f6;color:#111}
+main{max-width:740px;margin:auto;padding:18px}
+.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px #0002}
+h2{margin:0 0 8px;font-size:16px}small{color:#555}
+label{display:block;font-size:13px;margin:8px 0 3px;color:#444}
+input,select,textarea{width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-size:14px}
+textarea{height:80px;font:12px Consolas,monospace}
+button{padding:9px 14px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;margin:8px 6px 0 0}
+button.g{background:#6b7280}.msg{margin-top:8px;font-size:13px;white-space:pre-line}.ok{color:#15803d}.err{color:#b91c1c}
+table{width:100%;font-size:12px;border-collapse:collapse}td,th{padding:4px;border-bottom:1px solid #eee;text-align:left}
+</style></head><body><main>
+<div class="card"><h2>1) Anahtar (bir kez)</h2><div id="ks"></div>
+<button id="gen">Anahtar üret</button><div class="msg" id="km"></div>
+<small>private.pem dosyasını mutlaka yedekleyin, kimseye vermeyin.</small></div>
+
+<div class="card"><h2>2) Projeyi lisansla (zip seç)</h2>
+<small>Projenin kaynak kodunu içeren zip'i seçin. Program lisans dosyalarını ve ayarları zip'in içine otomatik yerleştirir.</small>
+<label>Proje zip dosyası</label><div style="display:flex;gap:6px"><input id="zip" readonly placeholder="Seçilmedi"><button class="g" id="pick" style="margin:0;white-space:nowrap">Zip seç…</button></div>
+<label>Ürün adı (lisans üretirken aynısı kullanılır)</label><input id="product" list="plist" placeholder="ilac-siparis">
+<datalist id="plist"><option value="ilac-siparis"><option value="ihracat-takip"></datalist>
+<label>Deneme süresi (gün)</label><input id="trial" type="number" value="14" min="0" max="365">
+<button id="inj">Zip'i lisansla ve kaydet</button><div class="msg" id="im"></div></div>
+
+<div class="card"><h2>3) Lisans kodu üret</h2>
+<small>Müşterinin gönderdiği makine koduna özel üretilir; yalnızca o bilgisayarda çalışır.</small>
+<label>Müşteri (firma) adı</label><input id="customer">
+<label>Ürün adı</label><input id="cproduct" list="plist2"><datalist id="plist2"></datalist>
+<label>Makine kodu</label><input id="machine" placeholder="XXXXX-XXXXX-XXXXX-XXXXX">
+<label>Bitiş tarihi</label><input type="date" id="expires">
+<div><button class="g" data-m="30">+30 gün</button><button class="g" data-m="365">+1 yıl</button><button class="g" data-m="1095">+3 yıl</button></div>
+<label>Modüller (isteğe bağlı, virgülle)</label><input id="modules">
+<button id="create">Lisans kodu üret</button>
+<label>Lisans kodu</label><textarea id="code" readonly></textarea>
+<button class="g" id="cp">Kopyala</button><button class="g" id="sv">Dosyaya kaydet…</button><div class="msg" id="cm"></div></div>
+
+<div class="card"><h2>Verilen lisanslar</h2><table id="log"></table></div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const say=(id,ok,t)=>{$(id).className='msg '+(ok?'ok':'err');$(id).textContent=t;};
+async function loadKeys(){const k=await api.keys();$('ks').textContent=k.exists?'Anahtar mevcut ✔  Klasör: '+k.dir:'Henüz anahtar yok.';}
+async function loadLog(){const l=await api.log();$('log').innerHTML='<tr><th>Müşteri</th><th>Ürün</th><th>Bitiş</th><th>Makine</th></tr>'+l.map(x=>`<tr><td>${esc(x.customer)}</td><td>${esc(x.product)}</td><td>${x.expires}</td><td>${esc(x.machine.slice(0,8))}…</td></tr>`).join('');}
+async function loadProducts(){const p=await api.products();$('plist2').innerHTML=p.map(x=>`<option value="${esc(x)}">`).join('');if(p[0]&&!$('cproduct').value)$('cproduct').value=p[0];}
+$('gen').onclick=async()=>{const r=await api.gen();if(r.ok)say('km',true,'Yeni anahtar üretildi.');loadKeys();};
+$('pick').onclick=async()=>{const p=await api.pickZip();if(p){$('zip').value=p;if(!$('product').value){const n=p.split(/[\\/]/).pop().toLowerCase();if(n.includes('ilac'))$('product').value='ilac-siparis';else if(n.includes('ihracat'))$('product').value='ihracat-takip';}}};
+$('inj').onclick=async()=>{say('im',true,'İşleniyor...');const r=await api.inject({zipPath:$('zip').value,product:$('product').value,trialDays:$('trial').value});
+ if(r.error)say('im',false,r.error);else if(r.ok){say('im',true,'Kaydedildi: '+r.path+'\n'+r.log.join('\n'));$('cproduct').value=$('product').value.trim();loadProducts();}else say('im',true,'');};
+document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const d=new Date();d.setDate(d.getDate()+ +b.dataset.m);$('expires').value=d.toISOString().slice(0,10);});
+$('create').onclick=async()=>{const r=await api.create({customer:$('customer').value,product:$('cproduct').value,machine:$('machine').value,expires:$('expires').value,modules:$('modules').value});
+ if(r.error){say('cm',false,r.error);return;}$('code').value=r.code;say('cm',true,'Lisans kodu üretildi. Kopyalayıp müşteriye gönderin.');loadLog();};
+$('cp').onclick=()=>{if($('code').value){api.copy($('code').value);say('cm',true,'Kopyalandı ✔');}};
+$('sv').onclick=async()=>{if(!$('code').value)return;const r=await api.saveLic({code:$('code').value,name:$('customer').value+'-'+$('cproduct').value});if(r.ok)say('cm',true,'Kaydedildi: '+r.path);};
+loadKeys();loadLog();loadProducts();
+</script></body></html>

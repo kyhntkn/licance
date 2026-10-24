@@ -1,0 +1,16 @@
+{
+  "name": "lisans-uretici",
+  "version": "2.0.0",
+  "description": "Electron projelerini lisanslayan ve lisans kodu üreten araç",
+  "author": "Firma Adınız",
+  "main": "main.js",
+  "scripts": { "start": "electron .", "build": "electron-builder --win portable" },
+  "devDependencies": { "electron": "^31.0.0", "electron-builder": "^24.13.3" },
+  "build": {
+    "appId": "com.firmaniz.lisansuretici",
+    "productName": "Lisans Uretici",
+    "files": ["main.js", "preload.js", "index.html", "inject.js", "zip-lite.js", "template/**/*"],
+    "win": { "target": "portable" },
+    "portable": { "artifactName": "LisansUretici-${version}.exe" }
+  }
+}
