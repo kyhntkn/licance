@@ -1,0 +1,31 @@
+name: Lisans Uretici Derle
+
+on:
+  workflow_dispatch:        # Actions sekmesinden elle çalıştır
+  push:
+    tags: ['v*']            # v1.0.0 gibi etiket atınca Release de oluşturur
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: lisans-uretici
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npx electron-builder --win portable --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lisans-uretici-exe
+          path: lisans-uretici/dist/*.exe
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: lisans-uretici/dist/*.exe
