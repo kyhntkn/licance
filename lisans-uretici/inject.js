@@ -52,6 +52,21 @@ function inject(zipBuf, { product, trialDays, publicKey }) {
   pkg.devDependencies = pkg.devDependencies || {};
   if (!all.electron) { pkg.devDependencies.electron = '^33.2.0'; log.push('electron bağımlılığı eklendi.'); }
   if (!all['electron-builder']) { pkg.devDependencies['electron-builder'] = '^25.1.8'; log.push('electron-builder bağımlılığı eklendi.'); }
+  // --- Electron Fuses: yalnızca app.asar'dan yükle + asar bütünlük doğrulaması ---
+  const major = v => { const m = String(v || '').match(/\d+/); return m ? parseInt(m[0], 10) : 0; };
+  const ver = n => (pkg.devDependencies || {})[n] || (pkg.dependencies || {})[n];
+  if (pkg.build && pkg.build.asar === false) {
+    log.push('UYARI: projede asar kapalı (asar:false), Fuses eklenmedi.');
+  } else {
+    if (major(ver('electron-builder')) < 26) {
+      pkg.devDependencies['electron-builder'] = '^26.0.0';
+      log.push('electron-builder, Fuses desteği için ^26.0.0 sürümüne yükseltildi.');
+    }
+    const integrity = major(ver('electron')) >= 30;
+    pkg.build = pkg.build || {};
+    pkg.build.electronFuses = { ...(pkg.build.electronFuses || {}), onlyLoadAppFromAsar: true, enableEmbeddedAsarIntegrityValidation: integrity };
+    log.push('Fuses: onlyLoadAppFromAsar açık, asar bütünlük doğrulaması ' + (integrity ? 'açık.' : 'KAPALI (Windows için Electron 30+ gerekir).'));
+  }
   if (pkg.build && Array.isArray(pkg.build.files))
     for (const f of ['lisans-baslat.js', 'lisans/**/*']) if (!pkg.build.files.includes(f)) pkg.build.files.push(f);
 

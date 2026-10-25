@@ -9,7 +9,7 @@
   "build": {
     "appId": "com.firmaniz.lisansuretici",
     "productName": "Lisans Uretici",
-    "files": ["main.js", "preload.js", "index.html", "inject.js", "zip-lite.js", "template/**/*"],
+    "files": ["main.js", "preload.js", "index.html", "inject.js", "zip-lite.js", "backup.js", "build/icon.png", "template/**/*"],
     "win": { "target": "portable" },
     "portable": { "artifactName": "LisansUretici-${version}.exe" }
   }

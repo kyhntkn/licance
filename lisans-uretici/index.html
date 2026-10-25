@@ -12,9 +12,10 @@ button{padding:9px 14px;border:0;border-radius:6px;background:#2563eb;color:#fff
 button.g{background:#6b7280}.msg{margin-top:8px;font-size:13px;white-space:pre-line}.ok{color:#15803d}.err{color:#b91c1c}
 table{width:100%;font-size:12px;border-collapse:collapse}td,th{padding:4px;border-bottom:1px solid #eee;text-align:left}
 </style></head><body><main>
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><img src="build/icon.png" width="52" height="52" alt=""><div><div style="font-size:20px;font-weight:700">Lisans Üretici</div><small>Uygulamalarınızı lisanslayın, lisans kodu üretin</small></div></div>
 <div class="card"><h2>1) Anahtar (bir kez)</h2><div id="ks"></div>
 <button id="gen">Anahtar üret</button><div class="msg" id="km"></div>
-<small>private.pem dosyasını mutlaka yedekleyin, kimseye vermeyin.</small></div>
+<small>Başka bilgisayardan geliyorsanız "Anahtar üret"e BASMAYIN, aşağıdaki "Yedekten geri yükle"yi kullanın.</small></div>
 
 <div class="card"><h2>2) Projeyi lisansla (zip seç)</h2>
 <small>Projenin kaynak kodunu içeren zip'i seçin. Program lisans dosyalarını ve ayarları zip'in içine otomatik yerleştirir.</small>
@@ -36,6 +37,12 @@ table{width:100%;font-size:12px;border-collapse:collapse}td,th{padding:4px;borde
 <label>Lisans kodu</label><textarea id="code" readonly></textarea>
 <button class="g" id="cp">Kopyala</button><button class="g" id="sv">Dosyaya kaydet…</button><div class="msg" id="cm"></div></div>
 
+<div class="card"><h2>4) Yedekle / Başka bilgisayara taşı</h2>
+<small>Anahtar, verilen lisans listesi ve ürün listesi tek şifreli dosyaya alınır. Yeni bilgisayarda aynı dosyayı geri yüklersiniz.</small>
+<label>Yedek parolası (en az 8 karakter; unutmayın, kurtarılamaz)</label><input id="bpw" type="password">
+<button id="bk">Yedek dosyası oluştur</button><button class="g" id="rs">Yedekten geri yükle…</button>
+<div class="msg" id="bm"></div></div>
+
 <div class="card"><h2>Verilen lisanslar</h2><table id="log"></table></div>
 </main>
 <script>
@@ -54,5 +61,7 @@ $('create').onclick=async()=>{const r=await api.create({customer:$('customer').v
  if(r.error){say('cm',false,r.error);return;}$('code').value=r.code;say('cm',true,'Lisans kodu üretildi. Kopyalayıp müşteriye gönderin.');loadLog();};
 $('cp').onclick=()=>{if($('code').value){api.copy($('code').value);say('cm',true,'Kopyalandı ✔');}};
 $('sv').onclick=async()=>{if(!$('code').value)return;const r=await api.saveLic({code:$('code').value,name:$('customer').value+'-'+$('cproduct').value});if(r.ok)say('cm',true,'Kaydedildi: '+r.path);};
+$('bk').onclick=async()=>{const r=await api.backup($('bpw').value);if(r.error)say('bm',false,r.error);else if(r.ok)say('bm',true,'Yedek kaydedildi: '+r.path+'\nBu dosyayı USB belleğe kopyalayın, parolayı ayrı bir yerde saklayın.');};
+$('rs').onclick=async()=>{const r=await api.restore($('bpw').value);if(r.error)say('bm',false,r.error);else if(r.ok){say('bm',true,'Geri yüklendi ✔ ('+r.lic+' lisans kaydı, '+r.products+' ürün). Anahtar hazır.');loadKeys();loadLog();loadProducts();}};
 loadKeys();loadLog();loadProducts();
 </script></body></html>

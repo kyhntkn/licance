@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog, clipboard } = require('electron');
 const crypto = require('crypto'), fs = require('fs'), path = require('path');
 const { inject } = require('./inject');
+const { pack, unpack } = require('./backup');
 
 const keyDir = () => path.join(app.getPath('userData'), 'keys');
 const privP = () => path.join(keyDir(), 'private.pem');
@@ -12,6 +13,13 @@ const readJson = (p, d) => { try { return JSON.parse(fs.readFileSync(p, 'utf8'))
 ipcMain.handle('keys', () => ({ exists: fs.existsSync(privP()), dir: keyDir() }));
 
 ipcMain.handle('gen', async () => {
+  if (!fs.existsSync(privP())) {
+    const r = await dialog.showMessageBox({
+      type: 'question', buttons: ['Vazgeç', 'Yeni anahtar üret'], defaultId: 0, message: 'Yeni anahtar üretilsin mi?',
+      detail: 'Daha önce başka bir bilgisayarda anahtar ürettiyseniz VAZGEÇİN ve "Yedekten geri yükle" düğmesini kullanın. Yeni anahtar üretirseniz eski lisanslar çalışmaz.'
+    });
+    if (r.response !== 1) return { cancelled: true };
+  }
   if (fs.existsSync(privP())) {
     const r = await dialog.showMessageBox({
       type: 'warning', buttons: ['Vazgeç', 'Yeni anahtar üret'], defaultId: 0, message: 'Mevcut anahtar silinecek!',
@@ -75,12 +83,52 @@ ipcMain.handle('saveLic', async (_e, d) => {
   if (r.canceled) return { cancelled: true };
   fs.writeFileSync(r.filePath, d.code); return { ok: true, path: r.filePath };
 });
+const pubOf = pem => crypto.createPublicKey(crypto.createPrivateKey(pem)).export({ type: 'spki', format: 'pem' });
+const uniq = (a, b) => { const seen = new Set(); return [...a, ...b].filter(x => { const s = JSON.stringify(x); if (seen.has(s)) return false; seen.add(s); return true; }); };
+
+// Başka bilgisayara taşıma: anahtar + lisans listesi + ürün listesi tek şifreli dosyada
+ipcMain.handle('backup', async (_e, pw) => {
+  if (!fs.existsSync(privP())) return { error: 'Yedeklenecek anahtar yok.' };
+  if (!pw || pw.length < 8) return { error: 'Yedek parolası en az 8 karakter olmalı.' };
+  const day = new Date().toISOString().slice(0, 10);
+  const r = await dialog.showSaveDialog({ defaultPath: 'lisans-uretici-yedek-' + day + '.lisansyedek', filters: [{ name: 'Lisans yedeği', extensions: ['lisansyedek'] }] });
+  if (r.canceled) return { cancelled: true };
+  fs.writeFileSync(r.filePath, pack({
+    private: fs.readFileSync(privP(), 'utf8'), public: fs.readFileSync(pubP(), 'utf8'),
+    log: readJson(logP(), []), products: readJson(prodP(), []), date: day
+  }, pw));
+  return { ok: true, path: r.filePath };
+});
+
+ipcMain.handle('restore', async (_e, pw) => {
+  if (!pw) return { error: 'Yedek parolasını girin.' };
+  const r = await dialog.showOpenDialog({ filters: [{ name: 'Lisans yedeği', extensions: ['lisansyedek'] }], properties: ['openFile'] });
+  if (r.canceled) return { cancelled: true };
+  let o, pub;
+  try { o = unpack(fs.readFileSync(r.filePaths[0]), pw); pub = pubOf(o.private); } catch (e) { return { error: e.message || 'Yedek geçersiz.' }; }
+  let same = false;
+  if (fs.existsSync(privP())) {
+    try { same = pubOf(fs.readFileSync(privP(), 'utf8')) === pub; } catch {}
+    if (!same) {
+      const c = await dialog.showMessageBox({ type: 'warning', buttons: ['Vazgeç', 'Üzerine yaz'], defaultId: 0, message: 'Bu bilgisayardaki anahtar yedektekinden FARKLI.',
+        detail: 'Üzerine yazarsanız bu bilgisayardaki anahtarla verilmiş lisanslar geçersiz olur.' });
+      if (c.response !== 1) return { cancelled: true };
+    }
+  }
+  fs.mkdirSync(keyDir(), { recursive: true });
+  fs.writeFileSync(privP(), o.private, { mode: 0o600 });
+  fs.writeFileSync(pubP(), pub);
+  fs.writeFileSync(logP(), JSON.stringify(same ? uniq(readJson(logP(), []), o.log || []) : (o.log || []), null, 1));
+  fs.writeFileSync(prodP(), JSON.stringify(same ? uniq(readJson(prodP(), []), o.products || []) : (o.products || [])));
+  return { ok: true, date: o.date, lic: (o.log || []).length, products: (o.products || []).length };
+});
+
 ipcMain.handle('copy', (_e, t) => { clipboard.writeText(String(t)); });
 ipcMain.handle('log', () => readJson(logP(), []));
 
 app.whenReady().then(() => {
   const w = new BrowserWindow({
-    width: 800, height: 900, autoHideMenuBar: true, title: 'Lisans Üretici',
+    width: 800, height: 900, autoHideMenuBar: true, title: 'Lisans Üretici', icon: path.join(__dirname, 'build', 'icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true }
   });
   w.loadFile('index.html');
