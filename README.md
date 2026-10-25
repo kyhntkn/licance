@@ -23,3 +23,16 @@ Electron projelerinizi (ilaç sipariş, ihracat takip vb.) lisanslar ve müşter
 
 ## Lisans Üretici'yi derleme
 Bu klasörü özel bir GitHub reposuna yükleyin > Actions > "Lisans Uretici Derle" > Run workflow.
+
+## Başka bilgisayara taşıma
+Eski bilgisayarda: Lisans Üretici > "4) Yedekle" > parola girin > "Yedek dosyası oluştur" (.lisansyedek, şifreli).
+Yeni bilgisayarda: exe'yi açın, "Anahtar üret"e BASMAYIN > parola girin > "Yedekten geri yükle…" > dosyayı seçin.
+Anahtar, verilen lisans listesi ve ürün listesi otomatik gelir. Müşterilerde değişiklik gerekmez.
+Yedek dosyasını ve parolasını ayrı yerlerde saklayın; parola unutulursa yedek açılamaz.
+
+## Electron Fuses (otomatik)
+"Zip'i lisansla" sırasında projeye şunlar eklenir (package.json > build > electronFuses):
+- onlyLoadAppFromAsar: uygulama kodu sadece app.asar içinden yüklenir (klasöre açılmış sahte kod çalışmaz).
+- enableEmbeddedAsarIntegrityValidation: app.asar'ın hash'i doğrulanır; dosyalar değiştirilirse uygulama açılmaz. (Windows için Electron 30+ gerekir.)
+Fuses için electron-builder 26+ gerekir; daha eskiyse otomatik ^26.0.0'a yükseltilir. Projede asar:false varsa Fuses eklenmez (uyarı verilir).
+Derleme sonrası kontrol (isteğe bağlı): npx @electron/fuses read --app dist/win-unpacked/UygulamaAdi.exe
